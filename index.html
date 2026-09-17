@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>The Lottie Moon Trail</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#efe3c4; --panel:#fbf4df; --ink:#1b1733; --soft:#5b5170; --gold:#b9820f;
+  --red:#c8321e; --jade:#2f7f57; --edge:#1b1733; --btn:#1b1733; --btnink:#f6ecd0; --dis:#b8ad92;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15122a; --panel:#1f1a3a; --ink:#f3e7c7; --soft:#a79fc2; --gold:#f2b632;
+    --red:#e5553c; --jade:#5fc48d; --edge:#f3e7c7; --btn:#f2b632; --btnink:#15122a; --dis:#4a4466;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15122a; --panel:#1f1a3a; --ink:#f3e7c7; --soft:#a79fc2; --gold:#f2b632;
+  --red:#e5553c; --jade:#5fc48d; --edge:#f3e7c7; --btn:#f2b632; --btnink:#15122a; --dis:#4a4466;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink)}
+body{font-family:"VT323","Courier New",monospace;font-size:22px;line-height:1.15;min-height:100vh;display:flex;justify-content:center}
+#app{width:100%;max-width:480px;padding:10px 10px 24px;display:flex;flex-direction:column;gap:8px}
+header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+h1{font-family:"Press Start 2P",monospace;font-size:11px;margin:0;letter-spacing:.5px;color:var(--red)}
+#mute{font-family:"Press Start 2P",monospace;font-size:9px;background:none;border:2px solid var(--edge);color:var(--ink);padding:6px 8px;cursor:pointer}
+.frame{border:3px solid var(--edge);box-shadow:4px 4px 0 var(--red);background:#000}
+canvas{display:block;width:100%;height:auto;image-rendering:pixelated;image-rendering:crisp-edges}
+#chap{font-family:"Press Start 2P",monospace;font-size:9px;color:var(--gold);min-height:12px;line-height:1.5}
+#stats{display:grid;grid-template-columns:repeat(4,1fr);gap:2px 8px;border:2px solid var(--edge);padding:6px 8px;background:var(--panel)}
+#stats[hidden]{display:none}
+.st{display:flex;flex-direction:column;min-width:0}
+.st b{font-family:"Press Start 2P",monospace;font-size:7px;font-weight:normal;color:var(--soft);margin-bottom:2px}
+.st span{font-size:20px;white-space:nowrap}
+.bar{height:8px;border:1px solid var(--ink);margin-top:5px;position:relative}
+.bar i{position:absolute;left:0;top:0;bottom:0;background:var(--jade)}
+#msg{background:var(--panel);border:2px solid var(--edge);padding:10px 12px;min-height:150px;white-space:pre-line;cursor:pointer}
+#btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#btns button{font-family:"Press Start 2P",monospace;font-size:10px;line-height:1.5;min-height:52px;padding:8px 6px;background:var(--btn);color:var(--btnink);border:0;box-shadow:3px 3px 0 var(--red);cursor:pointer;touch-action:manipulation}
+#btns button:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--red)}
+#btns button:disabled{background:var(--dis);color:var(--soft);box-shadow:none;cursor:default}
+#btns button.wide{grid-column:1/-1}
+#btns button:focus-visible,#mute:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.note{font-size:18px;color:var(--soft)}
+#byline{text-align:center;font-size:19px;color:var(--soft);padding:4px 6px;line-height:1.3}
+#byline[hidden]{display:none}
+#byline a{color:var(--red);text-decoration:underline}
+#byline b{font-family:"Press Start 2P",monospace;font-size:9px;font-weight:normal;color:var(--gold);display:block;margin-bottom:4px}
+@media (prefers-reduced-motion: reduce){#btns button:active{transform:none}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header><h1>The Lottie Moon Trail</h1><button id="mute" aria-label="Toggle sound">Sound on</button></header>
+  <div class="frame"><canvas id="scene" width="160" height="96" aria-label="Game scene"></canvas></div>
+  <div id="chap"></div>
+  <div id="stats" hidden></div>
+  <div id="msg" role="status" aria-live="polite"></div>
+  <div id="btns"></div>
+  <div id="byline" hidden></div>
+</div>
+<script>
+/* ---------------- analytics ----------------
+   Set GC_CODE to your GoatCounter site code (the part before
+   .goatcounter.com). Empty string = analytics fully off.
+   No cookies, no personal data, honors Do Not Track.
+   Note: this only reports from a real host (GitHub Pages etc.),
+   not from the claude.ai artifact preview, which blocks it. */
+const GC_CODE='';
+const seen={};
+function track(path,once){
+  try{
+    if(!GC_CODE)return;
+    if(navigator.doNotTrack==='1'||window.doNotTrack==='1')return;
+    if(once){if(seen[path])return;seen[path]=true}
+    const u=`https://${GC_CODE}.goatcounter.com/count`
+      +`?e=1&p=${encodeURIComponent(path)}&t=${encodeURIComponent(path)}`
+      +`&r=${encodeURIComponent(document.referrer||'')}&rnd=${Math.random()}`;
+    new Image().src=u;
+  }catch(e){}
+}
+function pageview(){
+  try{
+    if(!GC_CODE)return;
+    if(navigator.doNotTrack==='1'||window.doNotTrack==='1')return;
+    new Image().src=`https://${GC_CODE}.goatcounter.com/count`
+      +`?p=${encodeURIComponent(location.pathname||'/lottie-moon-trail')}`
+      +`&t=${encodeURIComponent(document.title)}`
+      +`&r=${encodeURIComponent(document.referrer||'')}`
+      +`&s=${innerWidth},${innerHeight},${devicePixelRatio||1}&rnd=${Math.random()}`;
+  }catch(e){}
+}
+pageview();
+/* ---------------- canvas ---------------- */
+const cv=document.getElementById('scene'),cx=cv.getContext('2d');
+let frame=0,off=0,movingUntil=0,curScene='road';
+const R=(x,y,w,h,c)=>{cx.fillStyle=c;cx.fillRect(Math.round(x),Math.round(y),w,h)};
+function spr(map,pal,x,y){for(let j=0;j<map.length;j++)for(let i=0;i<map[j].length;i++){const k=map[j][i];if(k!=='.')R(x+i,y+j,1,1,pal[k])}}
+const LOT=["..hhhh..",".hhhhhh.",".hfefeh.","..ffff..","...ff...",".dddddd.","fddddddf","..dddd..",".dddddd.",".dddddd.","dddddddd"];
+const LEGS=["..b..b..",".b....b."];
+const KID=[".hh.",".ff.","rrrr",".rr.","b..b"];
+const MULE=["........g.",".......ggg","gggggggg..","gggggggg..","g.g..g.g.."];
+function lottie(x,y,walk,thin){
+  const d=S&&S.flags&&S.flags.dress?'#2f5f95':'#6b2a52';
+  const pal={h:'#3a2414',f:'#f0c8a0',e:'#1a1a1a',d:thin?'#555a70':d,b:'#111'};
+  spr(LOT,pal,x,y);spr([LEGS[walk?Math.floor(frame/8)%2:0]],pal,x,y+11);
+}
+function wtree(x,y){R(x,y,2,12,'#5a3a1a');R(x-4,y-8,10,9,'#2e7a2e');R(x-2,y-11,6,3,'#3f9a3f')}
+function btree(x,y){R(x,y-14,2,14,'#4a3020');R(x-3,y-10,3,1,'#4a3020');R(x+2,y-8,3,1,'#4a3020');R(x-2,y-14,1,4,'#4a3020')}
+function whouse(x,y,w,h,wall,roof){R(x,y,w,h,wall);for(let i=0;i<7;i++)R(x-2+i,y-1-i,w+4-2*i,1,roof);R(x+w/2-2,y+h-7,4,7,'#4a2a14');R(x+3,y+3,4,4,'#6ab0f0');R(x+w-7,y+3,4,4,'#6ab0f0')}
+function chouse(x,y,w,h,wall,roof){R(x,y,w,h,wall);R(x-3,y-3,w+6,3,roof);R(x-1,y-5,w+2,2,roof);R(x-4,y-4,1,1,roof);R(x+w+3,y-4,1,1,roof);R(x+w/2-2,y+h-6,4,6,'#9a2a1a')}
+const wrap=(v,m)=>((v%m)+m)%m;
+function sky(a,b,c){R(0,0,160,22,a);R(0,22,160,20,b);R(0,42,160,20,c)}
+const SCENES={
+  farm(){sky('#4f94dc','#6fb0ec','#96cbf2');R(130,8,10,10,'#ffe070');R(0,54,160,42,'#4a9a3a');R(0,52,160,4,'#5fb04a');
+    whouse(92,34,40,22,'#ece2cf','#a8321e');wtree(24,44);wtree(145,46);for(let x=0;x<86;x+=6)R(x,60,1,6,'#e8dcc0');R(0,61,86,1,'#e8dcc0');lottie(60,56,false)},
+  school(){sky('#4f94dc','#6fb0ec','#96cbf2');R(0,54,160,42,'#4a9a3a');R(0,52,160,4,'#5fb04a');
+    whouse(86,32,48,24,'#a8442c','#3a3a3a');R(108,18,4,6,'#3a3a3a');R(109,20,2,2,'#f2b632');wtree(30,44);
+    lottie(56,56,false);spr(KID,{h:'#6a4a2a',f:'#f0c8a0',r:'#3a6ad0',b:'#111'},72,62+(frame%40<20?0:-1));spr(KID,{h:'#c89a4a',f:'#f0c8a0',r:'#c8321e',b:'#111'},40,63)},
+  sea(){const storm=S&&S.weather==='storm';sky(storm?'#3a3f55':'#5aa0e8',storm?'#4a5068':'#78b8f0',storm?'#5a6078':'#a8d4f4');
+    if(storm&&frame%90<3)R(0,0,160,60,'#e8e8ff');
+    R(0,58,160,38,storm?'#1c3050':'#1c4c8c');R(0,70,160,26,storm?'#18283f':'#163f78');
+    for(let i=0;i<44;i++){const x=wrap(i*17-off*1.6,160),y=60+(i%5)*7+Math.round(Math.sin((frame+i*9)/14));R(x,y,3,1,storm?'#8aa0c0':'#6aa0e0')}
+    const y=40+Math.round(Math.sin(frame/(storm?8:18))*(storm?3:1));
+    R(46,y+12,58,6,'#4a2a14');R(50,y+18,50,3,'#3a200e');R(58,y+6,34,6,'#e8e0d0');R(62,y+8,4,2,'#333');R(72,y+8,4,2,'#333');R(82,y+8,4,2,'#333');
+    R(74,y-8,6,14,'#222');R(75,y-10,4,2,'#c8321e');R(56,y-12,2,24,'#3a200e');R(96,y-10,2,22,'#3a200e');
+    for(let i=0;i<4;i++){const s=(frame/6+i*10)%40;R(74-s*0.8,y-12-s*0.4,4,3,storm?'#666':'#ddd')}},
+  town(){sky('#8cc0e0','#a8d0e4','#c8e0e8');R(0,30,160,14,'#8a8274');for(let x=0;x<160;x+=8)R(x,27,5,3,'#8a8274');
+    R(0,56,160,40,'#b89a70');R(0,54,160,3,'#9a8060');
+    chouse(12,36,30,20,'#d8c8a8','#3a3a48');chouse(58,40,26,16,'#d0c0a0','#3a3a48');chouse(112,34,34,22,'#d8c8a8','#3a3a48');
+    R(126,20,1,14,'#5a3a1a');R(124,24,5,6,'#c8321e');
+    lottie(76,58,false);
+    const k=(n,x,c)=>spr(KID,{h:'#1a1a1a',f:'#e8c090',r:c,b:'#111'},x+Math.round(Math.sin((frame+n*30)/20)*3),65+((frame+n*10)%30<15?0:-1));
+    if(S&&S.trust>20)k(1,58,'#c8321e');if(S&&S.trust>45)k(2,92,'#2f7f57');if(S&&S.trust>70)k(3,104,'#3a6ad0')},
+  road(moving){sky('#6aa8e0','#8cc0e8','#b4d8ee');
+    for(let i=0;i<6;i++){const x=wrap(i*40-off*0.25,200)-30;R(x,40,50,18,'#7a9a5a');R(x+8,34,34,6,'#7a9a5a');R(x+16,30,18,4,'#7a9a5a')}
+    R(0,56,160,40,'#c8a878');R(0,70,160,12,'#9a7248');
+    for(let i=0;i<5;i++){const x=wrap(i*47-off,200)-20;btree(x,66)}
+    for(let i=0;i<3;i++){const x=wrap(i*90+70-off*0.6,270)-40;chouse(x,46,16,10,'#d8c8a8','#3a3a48')}
+    const cy=64;const b=moving&&frame%10<5?-1:0;
+    spr(MULE,{g:'#6a6470'},96,cy+b+2);R(76,cy+b,20,7,'#6a4020');R(77,cy-6+b,18,6,'#2a3a6a');R(78,cy-7+b,16,1,'#2a3a6a');
+    R(88,cy-4+b,4,4,'#f0c8a0');R(88,cy-5+b,4,1,'#3a2414');
+    const wr=frame/4|0;R(79,cy+6,6,6,'#2a1a0a');R(81,cy+8,2,2,moving&&wr%2?'#8a6a4a':'#c8a878');
+    for(let i=0;i<8;i++){const x=wrap(i*23-off*1.1,170);R(x,84+(i%3)*3,4,1,'#b8906a')}},
+  night(){sky('#0e0c22','#16122e','#241a3a');for(let i=0;i<30;i++)R((i*53)%160,(i*29)%40,1,1,'#fff');
+    R(0,58,160,38,'#2a2230');chouse(10,40,34,18,'#3a3040','#1a1420');chouse(60,44,26,14,'#3a3040','#1a1420');chouse(110,38,40,20,'#3a3040','#1a1420');
+    [[20,40],[124,38],[70,44]].forEach(([x,y],n)=>{for(let i=0;i<6;i++){const h=3+((frame*3+i*7+n*13)%9);R(x+i*2,y-h,2,h,i%2?'#ff8a1a':'#ffd23a')}});
+    lottie(90,62,false)},
+  snow(){sky('#7a7c86','#8a8c96','#9a9ca6');R(0,56,160,40,'#e4e6ee');R(0,54,160,3,'#cfd2dc');
+    chouse(14,40,28,16,'#9a8a78','#3a3a48');chouse(118,42,30,14,'#9a8a78','#3a3a48');btree(60,56);btree(100,58);
+    lottie(78,58,false,true);R(88,65,5,2,'#6a4a2a');
+    for(let i=0;i<55;i++){const x=wrap(i*53+Math.sin((frame+i*20)/30)*4,160),y=wrap(i*29+frame*0.35,96);R(x,y,1,1,'#fff')}},
+  harbor(){sky('#0c0a24','#141034','#1e1840');for(let i=0;i<40;i++)R((i*61)%160,(i*37)%46,1,1,'#fff');
+    R(118,10,14,14,'#f4ecc8');R(122,12,4,4,'#e0d6b0');
+    R(0,60,160,36,'#101a38');for(let i=0;i<30;i++){const x=wrap(i*19-frame*0.2,160);R(x,64+(i%4)*8,3,1,'#2a3a6a')}
+    R(122,62,4,30,'#f4ecc8');R(123,70,2,20,'#c8c0a0');
+    R(30,50,64,8,'#1a1210');R(36,42,44,8,'#2a2220');R(56,30,6,12,'#1a1210');R(44,46,2,2,'#f2b632');R(64,46,2,2,'#f2b632');R(0,78,40,18,'#1a1428')},
+  grave(){sky('#5a6a8a','#7a88a2','#9aa6ba');R(0,60,160,36,'#3f7a3a');R(0,58,160,3,'#4f8f45');
+    R(62,26,36,36,'#8a8a92');R(66,22,28,4,'#8a8a92');R(70,20,20,2,'#8a8a92');R(64,58,32,4,'#6a6a72');
+    R(78,32,4,18,'#5a5a62');R(72,37,16,4,'#5a5a62');wtree(24,46);wtree(138,48);
+    for(let i=0;i<6;i++)R(58+i*9,62,2,2,i%2?'#f2b632':'#e5553c')}
+};
+function loop(){frame++;const moving=performance.now()<movingUntil;if(moving)off+=0.7;cx.clearRect(0,0,160,96);(SCENES[curScene]||SCENES.road)(moving);requestAnimationFrame(loop)}
+requestAnimationFrame(loop);
+function setScene(s){curScene=s}
+
+/* ---------------- sound ---------------- */
+let ac=null,muted=false;
+function beep(f=620,d=0.05){if(muted)return;try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();const o=ac.createOscillator(),g=ac.createGain();o.type='square';o.frequency.value=f;g.gain.value=0.035;o.connect(g);g.connect(ac.destination);o.start();g.gain.exponentialRampToValueAtTime(0.0001,ac.currentTime+d);o.stop(ac.currentTime+d+0.02)}catch(e){}}
+document.getElementById('byline').addEventListener('click',e=>{if(e.target.closest('a'))track('/click/cbl')});
+document.getElementById('mute').onclick=e=>{muted=!muted;e.target.textContent=muted?'Sound off':'Sound on'};
+
+/* ---------------- state ---------------- */
+let S=null,CP=null;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const rnd=a=>a[Math.floor(Math.random()*a.length)];
+const DIFF={
+ easy:{name:'Easy',mult:0.7,ev:0.35,backouts:99,health:90,funds:60,food:26,
+   blurb:'Gentler costs, and you can back out of any death and keep going.'},
+ normal:{name:'Normal',mult:1,ev:0.45,backouts:2,health:80,funds:40,food:20,
+   blurb:'The intended run. Two back-outs if Lottie dies.'},
+ hard:{name:'Hard',mult:1.4,ev:0.62,backouts:0,health:65,funds:25,food:14,
+   blurb:'Harsher travel, more trouble, no back-outs. One death ends the run.'}
+};
+const D=()=>DIFF[(S&&S.diff)||'normal'];
+function newGame(diff){const d=DIFF[diff]||DIFF.normal;
+  S={ch:0,step:0,health:d.health,faith:30,funds:d.funds,food:d.food,trust:0,lang:0,believers:0,given:0,letters:0,
+     flags:{},used:{},lastEv:null,weather:null,diff:diff||'normal',backouts:d.backouts};CP=null}
+function mark(){try{CP=JSON.parse(JSON.stringify(S))}catch(e){}}
+function apply(f){if(!f)return;const m=D().mult;
+  for(const k in f){let v=f[k];
+    if((k==='health'||k==='food')&&v<0)v=-Math.max(1,Math.round(-v*m));
+    if(['health','faith','trust','lang'].includes(k))S[k]=clamp(S[k]+v,0,100);
+    else if(['funds','food','believers','given','letters'].includes(k))S[k]=Math.max(0,S[k]+v)}
+  if(f.flag)S.flags[f.flag]=true}
+function save(){try{localStorage.setItem('lmtrail',JSON.stringify(S))}catch(e){}}
+function load(){try{const v=localStorage.getItem('lmtrail');return v?JSON.parse(v):null}catch(e){return null}}
+function clearSave(){try{localStorage.removeItem('lmtrail')}catch(e){}}
+
+/* ---------------- chapters ---------------- */
+const CH=[
+ {title:'Viewmont, Virginia',y0:1840,y1:1861,scene:'farm',len:4,verb:'Study hard',acts:['go','rest','pray'],food:0,go:{health:-2,faith:1,lang:2},
+  goMsg:['Lottie buries herself in Latin, Greek, and French.','Lottie argues theology with her teachers and usually wins.','Another term at Albemarle Female Institute.'],
+  intro:`December 12, 1840. Charlotte Digges Moon is born at Viewmont, a tobacco plantation in Albemarle County, Virginia.\n\nShe will never grow taller than about 4'3", but she is quick, bold, and stubborn. Everyone calls her Lottie.`,
+  fixed:{2:'revival'},pool:['books','prank','father'],
+  outro:`1861. Lottie earns a Master of Arts from Albemarle Female Institute, one of the first women in the South to hold the degree.\n\nThen war comes to Virginia.`},
+ {title:'Danville & Cartersville',y0:1866,y1:1873,scene:'school',len:5,verb:'Teach school',acts:['go','rest','pray','buy'],food:0,go:{funds:10,health:-3},
+  goMsg:['You teach grammar and French to a room of restless girls.','Lessons all day, grading by lamplight.','Your school in Cartersville, Georgia, gains a good name.'],
+  intro:`After the war, Lottie teaches in Danville, Kentucky, then opens a school for girls in Cartersville, Georgia, with her friend Anna Safford.\n\nShe is respected and secure. She is also restless.`,
+  fixed:{1:'edmonia',3:'call'},pool:['students','eggs','restless'],
+  outro:`July 1873. The Foreign Mission Board appoints Lottie Moon to China.\n\nShe packs her trunk, says goodbye to Georgia, and heads for San Francisco.`},
+ {title:'Across the Pacific',y0:1873,y1:1873,scene:'sea',len:8,verb:'Sail on',acts:['go','rest','pray'],food:3,go:{health:-3},onStart:{food:18},
+  goMsg:['The steamer plows west. Miles to Shanghai: shrinking.','Gray water in every direction.','The ship pitches. Lottie clings to the rail.','Another day at sea.'],
+  intro:`Autumn 1873. Lottie boards a steamer bound across the Pacific.\n\nWatch your food. There is nowhere to buy more until you reach China.`,
+  fixed:{},pool:['storm','seasick','calm','rats','fellow'],
+  outro:`At last: the coast of China. From Shanghai, Lottie travels north to Tengchow in Shandong province, where her sister Edmonia is waiting.`},
+ {title:'Tengchow, China',y0:1873,y1:1885,scene:'town',len:10,verb:'Teach & visit',acts:['go','study','cookies','rest','pray','buy'],food:2,go:{lang:5,trust:3,funds:6,health:-4},
+  goMsg:['You teach at the small girls\' school.','You visit homes with an older missionary wife.','Market day. You practice your tones on the vendors.','You teach a Bible story to a handful of pupils.'],
+  intro:`Tengchow, 1873. Walled city, crowded streets, and a language with tones that change a word's meaning entirely.\n\nLearn Mandarin. Win the trust of your neighbors. Try the cookies.`,
+  fixed:{1:'foreigndevil',3:'edmoniaill',6:'toy',8:'dress'},pool:['schoolwork','homesick','heat','tones','dumplings'],
+  outro:`Lottie is tired of teaching a dozen pupils while millions in the interior have never heard the gospel.\n\nDecember 1885. She moves alone to P'ingtu, far inland. No other missionary lives there.`},
+ {title:"P'ingtu Country",y0:1885,y1:1899,scene:'road',len:12,verb:'Visit a village',acts:['go','cookies','letter','rest','pray','buy'],food:3,go:{trust:4,lang:2,funds:3,health:-5},
+  goMsg:['The mule cart jolts down a rutted road to the next village.','You sit on a brick bed and tell the story of Jesus to curious women.','A long day on dusty roads.','You stay the night in a smoky inn.'],
+  intro:`P'ingtu, 1885. Villages scattered across the Shandong plain. Dirt roads. Suspicious crowds.\n\nVisit villages to build trust and share the gospel. Write letters home. Someone back in America needs to hear about this.`,
+  fixed:{3:'wmu',6:'li',9:'furlough'},pool:['rumor','winter','women','axle','bandits','invite','fever','lonely'],
+  outro:`The church at P'ingtu is growing, led by Chinese believers.\n\nBut trouble is gathering across North China.`},
+ {title:'The Boxer Uprising',y0:1900,y1:1901,scene:'night',len:3,verb:'Hold on',acts:['go','rest','pray'],food:2,go:{health:-4,faith:-2},
+  goMsg:['Rumors of burning churches spread from village to village.','You wait for news, hardly sleeping.'],
+  intro:`1900. The Boxer movement sweeps across North China, targeting foreigners and Chinese Christians alike.`,
+  fixed:{1:'boxer'},pool:['news','hidden'],
+  outro:`1901. The uprising is crushed. Lottie returns to Shandong and finds the P'ingtu believers have held on.`},
+ {title:'Famine',y0:1911,y1:1912,scene:'snow',len:6,verb:'Carry on',acts:['go','givefood','givemoney','pray'],food:3,go:{health:-11,funds:2},onStart:{food:10,funds:10},
+  goMsg:['Starving families line the roads.','Lottie walks the streets handing out what she can.','Snow. Hunger. Another funeral.'],
+  intro:`1911. Revolution topples China's last dynasty. Plague and famine follow.\n\nLottie is 71. The Mission Board is in debt and can send no relief. Give what you have.`,
+  fixed:{1:'revolution',4:'miller'},pool:['crowds','debt','quiet'],outro:null}
+];
+
+/* ---------------- events ---------------- */
+const EV={
+ revival:()=>({t:`1858. A revival comes to Charlottesville, led by the young preacher John A. Broadus.\n\nLottie has spent years scoffing at religion.`,c:[
+  {l:'Hear him out',f:{faith:30},r:`Lottie listens, and can't sleep that night. By morning she has given her life to Christ.`},
+  {l:'Go to scoff',f:{faith:30},r:`She goes to mock. She leaves unable to shake what she heard, and before dawn she has given her life to Christ.`}]}),
+ books:()=>({t:`Lottie reads Latin, Greek, French, Italian, and Spanish. A gift for languages will matter later.`,f:{lang:6}}),
+ prank:()=>({t:`A school legend: someone muffled the chapel bell with towels on April Fool's Day. Everyone suspects Lottie.`,c:[
+  {l:'Own up',f:{faith:4},r:`The teachers try hard not to laugh.`},{l:'Say nothing',f:{health:3,faith:-2},r:`The mystery lives on.`}]}),
+ father:()=>({t:`1852. Lottie's father, Edward Moon, dies. Her mother, Anna Maria, keeps Viewmont running and reads Scripture with the children.`,f:{health:-4,faith:4}}),
+ edmonia:()=>({t:`Word from home: your younger sister Edmonia has been appointed a missionary and sails for Tengchow, China. Her letters describe crowds who have never heard the gospel.`,c:[
+  {l:'Send your savings',f:{funds:-20,faith:10},r:`You send what you've saved. It feels like the right thing and also like the beginning of something.`},
+  {l:'Pray for her',f:{faith:7},r:`You pray for Edmonia every night. China stays on your mind.`}]}),
+ call:()=>({t:`Spring 1873. Your pastor in Cartersville preaches on the fields that are white for harvest.\n\nYou leave the service and go straight to your room to pray.`,c:[
+  {l:'Answer the call',f:{faith:15,flag:'called'},r:`You write the Foreign Mission Board. Southern Baptists have only just begun sending out single women. You intend to be one.`},
+  {l:'Not yet',f:{faith:-15,repeat:true},r:`You go back to your classroom. The sermon will not leave you alone.`}]}),
+ students:()=>({t:`Enrollment is up. Parents from neighboring towns want their daughters in your school.`,f:{funds:12}}),
+ eggs:()=>({t:`Postwar Georgia is poor. Some tuition arrives as eggs, hams, and firewood.`,f:{food:8,funds:-4}}),
+ restless:()=>({t:`You have a good job and good friends. Why does it feel like you're waiting for something?`,f:{faith:5}}),
+ storm:()=>{S.weather='storm';return{t:`A Pacific storm. Waves break over the deck and the ship groans.`,c:[
+  {l:'Stay below',f:{health:-6},r:`You wedge yourself into your bunk and pray. The storm passes by morning.`},
+  {l:'Help the sick',f:{health:-12,faith:8},r:`You spend the night nursing seasick passengers. You're exhausted, and so are they, but everyone makes it.`}]}},
+ seasick:()=>({t:`Lottie is terribly seasick. It is a misery that will follow her on every voyage of her life.`,f:{health:-10}}),
+ calm:()=>({t:`Glassy seas. You spend the day with a Chinese primer, copying characters.`,f:{lang:8,health:4}}),
+ rats:()=>({t:`Rats got into the ship's stores. Your provisions are short.`,f:{food:-6}}),
+ fellow:()=>({t:`You meet missionaries bound for Japan. You trade books, hymns, and advice.`,f:{faith:6}}),
+ foreigndevil:()=>({t:`Crowds follow you through the streets shouting "foreign devil." Children stare at your pale face and strange clothes.`,c:[
+  {l:'Smile and greet them',f:{trust:8,faith:-2},r:`You stumble through a greeting. A few children giggle. It's a start.`},
+  {l:'Hurry home',f:{health:3,trust:-3},r:`You shut the door and catch your breath. Tomorrow you'll try again.`}]}),
+ edmoniaill:()=>({t:`1876. Edmonia's health has collapsed. She must return to Virginia, or she may not survive.`,c:[
+  {l:'Take her home',f:{health:10,funds:-20,faith:4},r:`You escort Edmonia across the ocean, then turn around and come back to China alone.`},
+  {l:'Send her with others',f:{faith:-5,lang:8},r:`Saying goodbye at the dock is awful. You throw yourself into language study.`}]}),
+ toy:()=>({t:`A letter from Crawford Toy, your old friend from Virginia. He asks you to marry him and join him at Harvard.\n\nBut Toy has gone over to the new German higher criticism and to Darwinism. Southern Seminary forced him out in 1879 over it, and his faith keeps drifting; he will end up a Unitarian.\n\nYou study the question yourself before answering.`,c:[
+  {l:'Stay in China',f:{faith:15,health:-8},r:`Lottie reads the new theories, decides they gut the Bible she has staked her life on, and ends the engagement. Asked years later if she had ever been in love, she said she had, but that God had first claim on her life.`},
+  {l:'Accept',f:{end:'toy'}}]}),
+ dress:()=>({t:`Chinese women find your Western dress odd and a little alarming. It keeps them at a distance.`,c:[
+  {l:'Wear Chinese dress',f:{trust:15,flag:'dress'},r:`You adopt Chinese clothing. Some missionaries raise eyebrows. Your neighbors start inviting you in.`},
+  {l:'Keep your own',f:{trust:-2},r:`You stay in your own clothes. Conversations stay polite and short.`}]}),
+ schoolwork:()=>({t:`Your girls' school has a dozen pupils. Good work, but you wonder if this is why you crossed an ocean.`,f:{trust:4,faith:-4}}),
+ homesick:()=>({t:`A letter from Viewmont brings news of weddings and funerals you missed.`,f:{faith:-6,health:-3}}),
+ heat:()=>({t:`Summer heat and fever sweep the city.`,f:{health:-10}}),
+ tones:()=>({t:`A breakthrough! A shopkeeper understands you on the first try.`,f:{lang:10}}),
+ dumplings:()=>({t:`A neighbor woman brings you a plate of dumplings and stays to talk.`,f:{trust:6,food:4}}),
+ wmu:()=>S.letters>0?({t:`Your letters home struck a nerve. You urged Southern Baptist women to organize and give a Christmas offering for China.\n\n1888: the new Woman's Missionary Union collects $3,315. Enough to send three women to help you.`,f:{funds:40,faith:15,trust:5,flag:'wmu'}}):
+  ({t:`The Board has no money to send you help. You are one woman trying to reach an entire region.\n\nPerhaps if Southern Baptists back home knew what was happening here...`,c:[
+  {l:'Write urgently',f:{letters:1,funds:40,faith:15,trust:5,flag:'wmu'},r:`You write, and you don't hold back. Southern Baptist women respond: in 1888 the new Woman's Missionary Union gives $3,315, enough to send three women to help.`},
+  {l:'Carry on alone',f:{faith:-10,health:-8},r:`You keep going by yourself. You are very tired.`}]}),
+ li:()=>({t:`Near P'ingtu, a proud scholar named Li Shouting, once hostile to the foreign teaching, comes to faith.\n\nHe will become a pastor and baptize thousands.`,f:{believers:10,faith:10,flag:'li'}}),
+ furlough:()=>({t:`1891. You haven't been home in over a decade. The Board urges you to take a furlough.`,c:[
+  {l:'Go home and rest',f:{health:30,faith:5,funds:-10},r:`You sail for Virginia (seasick the entire way) and return to China rested.`},
+  {l:'Stay on',f:{health:-15,believers:5,faith:3},r:`You stay. The work grows. Your body keeps score.`}]}),
+ rumor:()=>({t:`A rumor spreads that foreigners steal children's eyes to make medicine. Doors close in your face.`,c:[
+  {l:'Keep visiting',f:{trust:6,health:-5,faith:-4},r:`You keep showing up, patient and kind. Slowly, doors reopen.`},
+  {l:'Wait it out',f:{trust:-4,health:5},r:`You stay home for a few weeks until tempers cool.`}]}),
+ winter:()=>({t:`A bitter Shandong winter. The heated brick bed is the only warm place in the house.`,f:{health:-8,food:-3}}),
+ women:()=>({t:`Village women invite you into their courtyard. They have never met a woman who can read.`,f:{trust:8,believers:2}}),
+ axle:()=>({t:`Your mule cart breaks an axle on the rutted road.`,c:[
+  {l:'Pay for repairs',f:{funds:-8},r:`A village carpenter fixes it by afternoon.`},
+  {l:'Walk the rest',f:{health:-10,trust:3},r:`You walk miles on sore feet. Villagers are impressed by the tiny foreign woman who won't quit.`}]}),
+ bandits:()=>({t:`Bandits are reported on the road ahead.`,c:[
+  {l:'Travel with others',f:{funds:-5},r:`You pay to join a merchant party. Slow, but safe.`},
+  {l:'Go anyway',f:{health:-12,faith:4},r:`You make it through, badly shaken.`}]}),
+ invite:()=>({t:`A family in a distant village sends word: come teach us.`,f:{trust:6,believers:3,health:-4}}),
+ fever:()=>({t:`Fever. You spend days in bed, too weak to lift your head.`,f:{health:-12}}),
+ lonely:()=>({t:`Months without speaking English to anyone. Your Mandarin has never been better.`,f:{faith:-5,lang:8}}),
+ boxer:()=>({t:`Summer 1900. Missionaries and thousands of Chinese Christians are being killed. The American consul orders all foreigners to evacuate.`,c:[
+  {l:'Evacuate to Japan',f:{faith:5,health:10,funds:-10},r:`You spend months teaching in Fukuoka, Japan, praying daily for the believers in P'ingtu.`},
+  {l:'Hide in the country',f:{health:-35,faith:15,trust:10},r:`(This is a what-if; the real Lottie evacuated.) Chinese friends risk their lives to hide you. You survive, barely.`}]}),
+ news:()=>({t:`A letter gets through: the P'ingtu church is scattered but not destroyed.`,f:{faith:8}}),
+ hidden:()=>({t:`Chinese believers are hiding in fields and caves. You pray for them by name.`,f:{faith:4,health:-3}}),
+ revolution:()=>({t:`1911. Revolution topples the Qing dynasty. Fighting adds to the suffering in Shandong.`,f:{health:-4,faith:2}}),
+ crowds:()=>({t:`Crowds of hungry people gather outside the mission compound.`,f:{faith:-3}}),
+ debt:()=>({t:`A letter from Richmond: the Board is deep in debt. No relief money is coming. Lottie gives from her own salary.`,f:{funds:-5,given:5}}),
+ quiet:()=>({t:`Coworkers notice Lottie eating less and less. She tells them she isn't hungry.`,f:{health:-5,given:3}}),
+ miller:()=>({t:`Missionary nurse Cynthia Miller realizes Lottie has been giving her food away. She now weighs about 50 pounds.\n\nMiller arranges passage home to America.`,c:[
+  {l:'Board the ship',f:{finish:true},r:`Lottie is carried aboard. She is too weak to argue.`}]})
+};
+
+/* ---------------- UI ---------------- */
+const $=id=>document.getElementById(id);
+let typeTimer=null,fullText='';
+function say(t){clearInterval(typeTimer);fullText=t;const el=$('msg');el.textContent='';let i=0;
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches){el.textContent=t;return}
+  typeTimer=setInterval(()=>{i+=2;el.textContent=t.slice(0,i);if(i%8===0)beep(1200,0.01);if(i>=t.length){clearInterval(typeTimer);el.textContent=t}},16)}
+$('msg').onclick=()=>{clearInterval(typeTimer);$('msg').textContent=fullText};
+function setByline(h){const el=$('byline');el.innerHTML=h||'';el.hidden=!h}
+function buttons(list){updateStats();setByline('');const b=$('btns');b.innerHTML='';list.forEach(o=>{const e=document.createElement('button');e.textContent=o.l;e.disabled=!!o.dis;if(list.length===1||o.wide)e.className='wide';e.onclick=()=>{beep();o.fn()};b.appendChild(e)})}
+const hw=h=>h>=75?'Good':h>=50?'Fair':h>=25?'Poor':'Very poor';
+function bar(v){return `<div class="bar"><i style="width:${v}%"></i></div>`}
+function updateStats(){const el=$('stats');if(!S||S.ended){el.hidden=true;$('chap').textContent='';return}
+  const c=CH[S.ch];if(!c)return;el.hidden=false;
+  const yr=Math.round(c.y0+(c.y1-c.y0)*Math.min(S.step,c.len)/c.len);
+  $('chap').textContent=`Ch ${S.ch+1}/${CH.length} ${c.title} - ${D().name}`;
+  el.innerHTML=`<div class="st"><b>Year</b><span>${yr}</span></div><div class="st"><b>Health</b><span>${hw(S.health)}</span></div>
+  <div class="st"><b>Food</b><span>${S.food} days</span></div><div class="st"><b>Funds</b><span>$${S.funds}</span></div>
+  <div class="st"><b>Faith</b>${bar(S.faith)}</div><div class="st"><b>Trust</b>${bar(S.trust)}</div>
+  <div class="st"><b>Mandarin</b>${bar(S.lang)}</div><div class="st"><b>Believers</b><span>${S.believers}</span></div>`}
+
+const ACT={
+ go:()=>CH[S.ch].verb,
+ rest:()=>'Rest',pray:()=>'Pray',study:()=>'Study Mandarin',cookies:()=>'Bake cookies',letter:()=>'Write home',buy:()=>'Buy food $10',
+ givefood:()=>'Give food',givemoney:()=>'Give money $10'
+};
+function play(m){S.ended=false;setScene(CH[S.ch].scene);
+  const c=CH[S.ch];say(m||`What will Lottie do?`);
+  buttons(c.acts.map(a=>({l:ACT[a](),wide:a==='go',dis:a!=='go'&&(S.used[a]||(a==='buy'&&S.funds<10)||(a==='cookies'&&(S.funds<3||S.food<2))||(a==='givefood'&&S.food<4)||(a==='givemoney'&&S.funds<10)),fn:()=>act(a)})))}
+function act(a){
+  if(a==='go')return advance();
+  S.used[a]=true;let m='';
+  switch(a){
+   case'rest':apply({health:12,food:-2});m=`Lottie rests. She feels a little stronger.`;break;
+   case'pray':apply({faith:12,health:2});m=rnd([`Lottie spends the morning in prayer.`,`She prays for the villages she hasn't reached yet.`,`She prays, and her courage returns.`]);break;
+   case'study':apply({lang:12});m=`Hours with your language teacher. Your tones are improving.`;break;
+   case'cookies':apply({funds:-3,food:-2,trust:10});m=`You bake sweet tea cakes. Children who shouted "foreign devil" now knock on your door, and their mothers follow them.`;beep(880,0.1);break;
+   case'letter':apply({letters:1,faith:4});m=`You write home, urging Southern Baptists, especially the women, to give and to go.`;break;
+   case'buy':apply({funds:-10,food:15});m=`You buy millet, flour, and vegetables at the market.`;break;
+   case'givefood':apply({food:-4,health:-6,given:6,trust:4});m=`Lottie quietly gives her own rations to a starving family.`;break;
+   case'givemoney':apply({funds:-10,given:10});m=`Lottie sends her money for famine relief.`;break;
+  }
+  save();if(dead())return;play(m)}
+function advance(){
+  mark();
+  const c=CH[S.ch];S.step++;S.used={};S.weather=null;movingUntil=performance.now()+1400;beep(330,0.08);
+  let m=rnd(c.goMsg);apply(c.go);
+  const eat=c.food?Math.max(1,Math.round(c.food*D().mult)):0;
+  if(eat){if(S.food>=eat)S.food-=eat;else{S.food=0;S.health=clamp(S.health-10,0,100);m+=` The food has run out. Lottie grows weak.`}}
+  if(S.ch===4){const ch=(S.trust+S.lang)/220*(S.flags.li?1.6:1);if(Math.random()<ch){const n=1+Math.floor(Math.random()*(S.flags.li?7:3));S.believers+=n;m+=`\n\n${n} ${n>1?'villagers ask':'villager asks'} to follow Jesus.`}}
+  if(S.ch===3&&S.trust>50&&Math.random()<0.3){S.believers+=1;m+=`\n\nA neighbor asks to be baptized.`}
+  if(S.ch===6)S.health=Math.max(S.health,4);
+  save();if(dead())return;
+  if(c.fixed[S.step])return event(c.fixed[S.step]);
+  if(S.step>=c.len)return chapterEnd();
+  if(Math.random()<D().ev){let k=rnd(c.pool);if(k===S.lastEv)k=rnd(c.pool);if(k!==S.lastEv)return event(k)}
+  play(m)}
+function event(key){
+  S.lastEv=key;const e=EV[key]();setScene(CH[S.ch].scene);say(e.t);beep(520,0.12);
+  if(!e.c){apply(e.f);save();buttons([{l:'OK',fn:afterEvent}]);return}
+  buttons(e.c.map(o=>({l:o.l,fn:()=>{const f=o.f||{};if(f.end)return altEnd(f.end);apply(f);if(f.repeat)S.step--;if(f.finish)S.step=CH[S.ch].len;save();say(o.r);buttons([{l:'Continue',fn:afterEvent}])}})))}
+function afterEvent(){S.weather=null;if(dead())return;if(S.step>=CH[S.ch].len)return chapterEnd();play()}
+function dead(){if(S.ch>=6)return false;
+  if(S.health<=0){gameOver('health',S.ch===2?`Her health hit zero at sea and she never reached China.`:`Her health hit zero. Fever finished what exhaustion started.`);return true}
+  if(S.faith<=0){gameOver('faith',`Her faith meter hit zero. Worn down and discouraged, she resigns and sails home for good.`);return true}return false}
+function chapterEnd(){const c=CH[S.ch];if(!c.outro)return finale();say(c.outro);
+  buttons([{l:'Next chapter',fn:()=>{track('/chapter/'+(S.ch+1)+'-complete');S.ch++;S.step=0;S.used={};S.lastEv=null;apply(CH[S.ch].onStart);save();chapterIntro()}}])}
+function chapterIntro(){const c=CH[S.ch];mark();setScene(c.scene);say(c.intro);buttons([{l:'Begin',fn:()=>play()}])}
+function gameOver(kind,t){track('/game-over/'+kind+'/ch'+(S.ch+1)+'/'+S.diff);clearSave();const snap=CP;S.ended=true;setScene('grave');beep(180,0.4);
+  const tip=kind==='health'?`Rest, buy food, and don't travel on an empty larder.`:`Pray, and keep her connected to people back home.`;
+  const canBack=snap&&S.backouts>0;
+  say(`>>> GAME OVER <<<\nYour run ended in ${CH[S.ch].title}, and not the way history went.\n\n${t}\n\nThis is a game failure, not a fact: the real Lottie Moon lived to 1912 and served in China 39 years.\n\nTip: ${tip}${canBack?`\n\nBack-outs left: ${S.backouts}`:''}`);
+  const b=[];
+  if(canBack)b.push({l:'Back out, undo this',fn:()=>{track('/back-out/ch'+(S.ch+1));S=snap;S.ended=false;S.backouts--;S.health=Math.max(S.health,30);S.faith=Math.max(S.faith,20);CP=null;save();play(`You back out of that decision. Lottie is still standing. Back-outs left: ${S.backouts}.`)}});
+  b.push({l:canBack?'Start over':'Try again',fn:title});
+  buttons(b)}
+function altEnd(){track('/ending/toy');const snap=load();S.ended=true;setScene('farm');
+  say(`Lottie marries Crawford Toy and settles in Cambridge, Massachusetts. A comfortable, respectable life among Harvard's liberal divines.\n\nThe end? Historically, Lottie turned him down over exactly that theology and gave nearly 40 years to China.`);
+  buttons([{l:'Choose again',fn:()=>{S=snap;S.step=Math.max(0,S.step);event('toy')}},{l:'New game',fn:pickDiff}])}
+function finale(){track('/finish/'+S.diff);S.ended=true;setScene('harbor');updateStats();
+  say(`Lottie sails for home with Cynthia Miller. She is 72 years old.\n\nOn Christmas Eve, 1912, aboard ship in the harbor at Kobe, Japan, Lottie Moon dies.`);
+  buttons([{l:'Her legacy',fn:legacy}])}
+function legacy(){clearSave();setScene('grave');track('/legacy');
+  const score=S.believers*10+S.trust*2+S.given*5+S.faith*2+S.letters*15+Math.floor(S.funds/2)+(S.flags.dress?25:0);
+  const rank=score>=700?'Pioneer':score>=450?'Faithful laborer':score>=250?'Steady servant':'Beginner';
+  say(`Lottie Moon, 1840–1912\n\nBelievers: ${S.believers}   Letters home: ${S.letters}\nGiven in famine: ${S.given}   Trust: ${S.trust}\nScore: ${score} (${rank})\n\nIn 1918 the Woman's Missionary Union named its Christmas offering for her. The Lottie Moon Christmas Offering has since raised billions of dollars for missions worldwide.`);
+  buttons([{l:'Credits',fn:credits},{l:'Play again',fn:pickDiff}])}
+function start(diff){newGame(diff);track('/start/'+(diff||'normal'));save();chapterIntro()}
+function pickDiff(){track('/pick-difficulty',true);S=null;setScene('road');movingUntil=Infinity;updateStats();
+  say(`Choose a difficulty.\n\nEasy — ${DIFF.easy.blurb}\n\nNormal — ${DIFF.normal.blurb}\n\nHard — ${DIFF.hard.blurb}`);
+  buttons([{l:'Easy',fn:()=>{movingUntil=0;start('easy')}},{l:'Normal',fn:()=>{movingUntil=0;start('normal')}},
+           {l:'Hard',fn:()=>{movingUntil=0;start('hard')}},{l:'Back',fn:title}])}
+function title(){S=null;setScene('road');movingUntil=Infinity;updateStats();
+  say(`An 8-bit journey from Virginia to China, 1840–1912.\n\nGuide Lottie Moon through seven chapters of her life. Keep her health, faith, and food up. Build trust. Write home.`);
+  const saved=load();const list=[{l:'New game',fn:pickDiff}];
+  if(saved&&!saved.ended)list.push({l:'Continue',fn:()=>{movingUntil=0;S=saved;S.used=S.used||{};chapterIntroOrPlay()}});
+  list.push({l:'Credits',fn:credits});
+  buttons(list);
+  setByline(`From your friends at<br><a href="https://centerforbaptistleadership.org" target="_blank" rel="noopener">Center for Baptist Leadership</a>`)}
+function credits(){track('/credits');S=null;setScene('harbor');movingUntil=0;
+  say(`The Lottie Moon Trail\n\nJon Whitehead — developer and prompt author, assisted by Claude.\n\nBased on the life of Charlotte "Lottie" Digges Moon, 1840–1912: Viewmont, Virginia to Tengchow, P'ingtu, and the harbor at Kobe.\n\nChoices marked as what-ifs depart from the record. Everything else follows the standard accounts of her life.`);
+  buttons([{l:'Back to title',fn:title},{l:'New game',fn:pickDiff}]);
+  setByline(`From your friends at<br><a href="https://centerforbaptistleadership.org" target="_blank" rel="noopener">Center for Baptist Leadership</a>`)}
+function chapterIntroOrPlay(){S.step===0?chapterIntro():play()}
+title();
+</script>
+</body>
+</html>
